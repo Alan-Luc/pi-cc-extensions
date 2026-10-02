@@ -17,7 +17,7 @@ import { truncateToWidth } from "@earendil-works/pi-tui";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { config } from "../../config/config.ts";
 import { stripAnsi } from "../../utils/ansi-text.ts";
@@ -46,6 +46,42 @@ export function footerGlyphs(nerdIcons: boolean): { git: string; cache: string; 
 	return nerdIcons
 		? { git: FOOTER_NERD_ICON_GIT, cache: FOOTER_NERD_ICON_CACHE, mcp: FOOTER_NERD_ICON_MCP }
 		: { git: "", cache: "", mcp: "" };
+}
+
+const SUBAGENT_MARKER_KEYS = [
+	"PI_SUBAGENT_AGENT",
+	"PI_SUBAGENT_PARENT_SESSION",
+	"PI_SUBAGENT_NAME",
+	"PI_SUBAGENT_SESSION",
+	"PI_SUBAGENT_SURFACE",
+] as const;
+
+function isNonEmpty(value: string | undefined): boolean {
+	return typeof value === "string" && value.trim().length > 0;
+}
+
+/** Match pi-subagents' child-process markers without importing that extension. */
+export function isSubagentChildEnvironment(
+	env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+	return SUBAGENT_MARKER_KEYS.some((key) => isNonEmpty(env[key]));
+}
+
+export function footerRoleLabel(
+	env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+	return isSubagentChildEnvironment(env) ? "" : "Tech Lead";
+}
+
+export function formatCwdLabel(cwd: string, home = homedir()): string {
+	const normalizedCwd = resolve(cwd);
+	const normalizedHome = resolve(home);
+	const homeRelative = relative(normalizedHome, normalizedCwd);
+	if (homeRelative === ".." || homeRelative.startsWith(`..${sep}`)) {
+		return normalizedCwd;
+	}
+	if (isAbsolute(homeRelative)) return normalizedCwd;
+	return homeRelative ? join("~", homeRelative) : "~";
 }
 
 type GitStats = { add: number; del: number };
@@ -373,8 +409,7 @@ const createCustomFooterFactory =
 				}
 			}
 
-			// cwd 默认只显示最底层路径（根目录时回退完整路径）
-			const cwdLabel = ctx.cwd.split(/[\\/]/).filter(Boolean).pop() || ctx.cwd;
+			const cwdLabel = formatCwdLabel(ctx.cwd);
 
 			const usingSubscription =
 				!!model &&
@@ -450,7 +485,8 @@ const createCustomFooterFactory =
 				const gitLabel = glyphs.git ? `${glyphs.git} ${branch}` : branch;
 				place += theme.fg("muted", " on ") + gitColor(gitLabel) + stats;
 			}
-			const line2 = joinChips([place, ...line2Plugins]);
+			const role = footerRoleLabel();
+			const line2 = joinChips([role ? theme.fg("warning", role) : "", place, ...line2Plugins]);
 			const line3 = joinChips(line3Plugins);
 
 			return [

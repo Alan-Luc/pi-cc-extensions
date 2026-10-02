@@ -13,7 +13,10 @@ import {
 	applyCustomFooter,
 	clearCustomFooter,
 	footerGlyphs,
+	footerRoleLabel,
+	formatCwdLabel,
 	formatXaiFooterChip,
+	isSubagentChildEnvironment,
 	parseGitStats,
 } from "../extensions/feature/shell/footer.ts";
 import {
@@ -251,4 +254,31 @@ test("formatXaiFooterChip prefers included percent then prepaid dollars", () => 
 test("parseGitStats sums numstat add/delete columns", () => {
 	assert.deepEqual(parseGitStats("10\t2\ta.ts\n3\t1\tb.ts\n"), { add: 13, del: 3 });
 	assert.deepEqual(parseGitStats(""), { add: 0, del: 0 });
+});
+
+test("footer labels root sessions and ignores blank child markers", () => {
+	assert.equal(isSubagentChildEnvironment({}), false);
+	assert.equal(footerRoleLabel({}), "Tech Lead");
+	assert.equal(footerRoleLabel({ PI_SUBAGENT_AGENT: " " }), "Tech Lead");
+});
+
+for (const marker of [
+	"PI_SUBAGENT_AGENT",
+	"PI_SUBAGENT_PARENT_SESSION",
+	"PI_SUBAGENT_NAME",
+	"PI_SUBAGENT_SESSION",
+	"PI_SUBAGENT_SURFACE",
+] as const) {
+	test(`footer hides the Tech Lead label for ${marker} child sessions`, () => {
+		const env = { [marker]: " child " };
+		assert.equal(isSubagentChildEnvironment(env), true);
+		assert.equal(footerRoleLabel(env), "");
+	});
+}
+
+test("footer displays cwd relative to home or as a full path", () => {
+	assert.equal(formatCwdLabel("/Users/alan/project", "/Users/alan"), "~/project");
+	assert.equal(formatCwdLabel("/Users/alan", "/Users/alan"), "~");
+	assert.equal(formatCwdLabel("/tmp/project", "/Users/alan"), "/tmp/project");
+	assert.equal(formatCwdLabel("/", "/Users/alan"), "/");
 });

@@ -23,6 +23,8 @@ pi install git:github.com/minuque/pi-cc-extensions
 
 安装后执行 `/reload`
 
+> 本 fork 跟随上游 `minuque/pi-cc-extensions` main（基线 `4811317`），仅增加根会话 `Tech Lead` 底栏、五个 `PI_SUBAGENT_*` 子会话标记隐藏、home-relative/绝对 cwd，以及适配当前 Pi 行为的 footer、lazy-proxy 和 tool-diff 测试。
+
 ## 功能
 
 | 功能                  | 说明                                                                            | 入口                                            |
