@@ -819,8 +819,8 @@ test("lazy-proxy tui: fullscreen compact expanded round thinking hint expands in
 		installToolMouseInteraction(ui.ctx);
 		ui.widget.render();
 		assistant.setExpanded(true);
-		renderer.currentLayout = fullscreenLayout(assistant, null);
-		const rendered = assistant.render(80);
+		renderer.currentLayout = fullscreenLayout(renderer.children, null);
+		const rendered = renderer.render(80);
 		const hintRow = rendered.findIndex((line: string) => line.includes("to show more"));
 		const plain = (rendered[hintRow] ?? "").replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
 		const hintCol = plain.indexOf("to show more") + 1;
@@ -833,14 +833,14 @@ test("lazy-proxy tui: fullscreen compact expanded round thinking hint expands in
 				if (hit) return hit;
 			}
 		};
-		const block = findThinking(assistant);
-		assert.ok(block, "expanded round keeps the thinking block in the tree");
+		const block = findThinking(renderer);
+		assert.ok(block, "expanded round keeps the thinking block in the mounted tree");
 
 		tui.handleViewportInput(`\x1b[<0;${hintCol};${hintRow + 1}M`);
 		assert.equal(block!.expanded, true, "thinking hint click expands the preview");
 		assert.equal(assistant.expanded, true, "round stays open");
-		renderer.currentLayout = fullscreenLayout(assistant, null);
-		const expandedRow = assistant
+		renderer.currentLayout = fullscreenLayout(renderer.children, null);
+		const expandedRow = renderer
 			.render(80)
 			.findIndex((line: string) => line.includes("plan the click path"));
 		assert.ok(expandedRow >= 0, "expanded thinking body is visible");
@@ -890,8 +890,8 @@ test("lazy-proxy tui: fullscreen compact expanded round tool hint expands in pla
 		installToolMouseInteraction(ui.ctx);
 		ui.widget.render();
 		assistant.setExpanded(true);
-		renderer.currentLayout = fullscreenLayout(assistant, null);
-		const rendered = assistant.render(80);
+		renderer.currentLayout = fullscreenLayout(renderer.children, null);
+		const rendered = renderer.render(80);
 		const hintRow = rendered.findIndex((line: string) => line.includes("to show more"));
 		const plain = (rendered[hintRow] ?? "").replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
 		const hintCol = plain.indexOf("to show more") + 1;
@@ -902,8 +902,8 @@ test("lazy-proxy tui: fullscreen compact expanded round tool hint expands in pla
 		assert.equal(assistant.expanded, true, "round stays open when a nested tool expands");
 
 		// 面板内非提示区（工具卡标题行）单击：收起整块面板。
-		renderer.currentLayout = fullscreenLayout(assistant, null);
-		const titleRow = assistant
+		renderer.currentLayout = fullscreenLayout(renderer.children, null);
+		const titleRow = renderer
 			.render(80)
 			.findIndex((line: string) => line.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").includes("Bash"));
 		assert.ok(titleRow >= 0, "expanded tool keeps its title row");

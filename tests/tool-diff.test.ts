@@ -555,7 +555,7 @@ test("write collapsed preview uses writeDiffCollapsedLines independently of edit
 			writeDiffCollapsedLines: 4,
 		},
 	);
-	const writeText = output(write).join("\n");
+	const writeText = output(write).map(stripVTControlCharacters).join("\n");
 	assert.match(writeText, /created/);
 	assert.match(writeText, /more/);
 	assert.match(writeText, /const value0 = 0/);
@@ -578,8 +578,8 @@ test("write collapsed preview uses writeDiffCollapsedLines independently of edit
 			writeDiffCollapsedLines: 0,
 		},
 	);
-	const editText = output(edit).join("\n");
-	assert.match(editText, /value 1/);
+	const editText = output(edit).map(stripVTControlCharacters).join("\n");
+	assert.match(editText, /^▌[ \t]+1[ \t]+│[ \t]+new value 1[ \t]*$/m);
 	assert.match(editText, /more/);
 	assert.doesNotMatch(editText, /\+40 -0/, "edit must not use write stats-only collapse");
 });
@@ -603,7 +603,7 @@ test("writeDiffCollapsedLines 0 shows stats only until expanded", () => {
 		store,
 		() => display,
 	);
-	const collapsedText = output(collapsed).join("\n");
+	const collapsedText = output(collapsed).map(stripVTControlCharacters).join("\n");
 	assert.match(collapsedText, /created/);
 	assert.match(collapsedText, /more/);
 	assert.doesNotMatch(collapsedText, /const value/);
@@ -618,7 +618,7 @@ test("writeDiffCollapsedLines 0 shows stats only until expanded", () => {
 		store,
 		() => display,
 	);
-	const expandedText = output(expanded).join("\n");
+	const expandedText = output(expanded).map(stripVTControlCharacters).join("\n");
 	assert.match(expandedText, /const value0 = 0/);
 	assert.match(expandedText, /const value1 = 1/);
 });
