@@ -15,6 +15,7 @@ import {
 	footerGlyphs,
 	footerRoleLabel,
 	formatCwdLabel,
+	getFooterStatusSnapshot,
 	formatXaiFooterChip,
 	isSubagentChildEnvironment,
 	parseGitStats,
@@ -256,10 +257,112 @@ test("parseGitStats sums numstat add/delete columns", () => {
 	assert.deepEqual(parseGitStats(""), { add: 0, del: 0 });
 });
 
+type TestFooter = { render(width: number): string[]; dispose(): void };
+type TestFooterFactory = (
+	tui: { requestRender(): void },
+	theme: {
+		fg(color: string, text: string): string;
+		getThinkingBorderColor(level: string): (text: string) => string;
+	},
+	footerData: {
+		getExtensionStatuses(): ReadonlyMap<string, string>;
+		getGitBranch(): string;
+		onBranchChange(listener: () => void): () => void;
+	},
+) => TestFooter;
+
+function renderFooterStatuses(statuses: ReadonlyMap<string, string>): string[] {
+	let footerFactory: TestFooterFactory | undefined;
+	const ctx = {
+		hasUI: true,
+		cwd: process.cwd(),
+		model: undefined,
+		thinkingLevel: "off",
+		getContextUsage: () => ({ contextWindow: 100, percent: 50 }),
+		sessionManager: {
+			getEntries: () => [],
+			getBranch: () => [],
+			getSessionName: () => "",
+		},
+		ui: {
+			setFooter(next: TestFooterFactory | undefined): void {
+				footerFactory = next;
+			},
+		},
+	};
+	const footerData = {
+		getExtensionStatuses: () => statuses,
+		getGitBranch: () => "",
+		onBranchChange: (_listener: () => void) => () => {},
+	};
+	const tui = { requestRender(): void {} };
+	const theme = {
+		fg: (_color: string, text: string) => text,
+		getThinkingBorderColor: (_level: string) => (text: string) => text,
+	};
+	const previous = { ...config };
+	const childMarkers = [
+		"PI_SUBAGENT_AGENT",
+		"PI_SUBAGENT_PARENT_SESSION",
+		"PI_SUBAGENT_NAME",
+		"PI_SUBAGENT_SESSION",
+		"PI_SUBAGENT_SURFACE",
+	] as const;
+	const previousMarkers = new Map(childMarkers.map((key) => [key, process.env[key]]));
+	for (const key of childMarkers) delete process.env[key];
+	try {
+		setConfig(normalizeConfig({ enableCustomFooter: true }));
+		applyCustomFooter(ctx as never);
+		assert.ok(footerFactory);
+		const footer = footerFactory(tui, theme, footerData);
+		try {
+			return footer.render(200);
+		} finally {
+			footer.dispose();
+		}
+	} finally {
+		setConfig(previous);
+		for (const key of childMarkers) {
+			const value = previousMarkers.get(key);
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
+	}
+}
+
+const PI_VIM_MODE_STATUS_KEY = "pi-vim-mode";
+
+test("footer uses raw Vim mode in the role slot without duplicating it as a chip", () => {
+	const mode = "\u001b[31mNORMAL\u001b[0m";
+	const lines = renderFooterStatuses(
+		new Map([
+			[PI_VIM_MODE_STATUS_KEY, mode],
+			["ordinary", "\u001b[35mordinary\nchip\t\u001b[0m"],
+		]),
+	);
+	const rendered = lines.join("\n");
+	assert.ok(lines[1]?.startsWith(mode));
+	assert.equal(rendered.match(/NORMAL/g)?.length, 1);
+	assert.match(rendered, /ordinary chip/);
+	assert.doesNotMatch(rendered, /\u001b\[35m/);
+	assert.equal(getFooterStatusSnapshot().has(PI_VIM_MODE_STATUS_KEY), false);
+});
+
+test("footer omits the Vim role when its status is missing", () => {
+	const rendered = renderFooterStatuses(new Map()).join("\n");
+	assert.doesNotMatch(rendered, /Tech Lead|NORMAL/);
+});
+
+test("footer omits the Vim role when its status is cleared", () => {
+	const rendered = renderFooterStatuses(new Map([[PI_VIM_MODE_STATUS_KEY, ""]])).join("\n");
+	assert.doesNotMatch(rendered, /Tech Lead|NORMAL/);
+});
+
 test("footer labels root sessions and ignores blank child markers", () => {
+	const mode = "\u001b[31mNORMAL\u001b[0m";
 	assert.equal(isSubagentChildEnvironment({}), false);
-	assert.equal(footerRoleLabel({}), "Tech Lead");
-	assert.equal(footerRoleLabel({ PI_SUBAGENT_AGENT: " " }), "Tech Lead");
+	assert.equal(footerRoleLabel(mode, {}), mode);
+	assert.equal(footerRoleLabel(mode, { PI_SUBAGENT_AGENT: " " }), mode);
 });
 
 for (const marker of [
@@ -269,10 +372,10 @@ for (const marker of [
 	"PI_SUBAGENT_SESSION",
 	"PI_SUBAGENT_SURFACE",
 ] as const) {
-	test(`footer hides the Tech Lead label for ${marker} child sessions`, () => {
+	test(`footer hides the Vim mode label for ${marker} child sessions`, () => {
 		const env = { [marker]: " child " };
 		assert.equal(isSubagentChildEnvironment(env), true);
-		assert.equal(footerRoleLabel(env), "");
+		assert.equal(footerRoleLabel("\u001b[31mNORMAL\u001b[0m", env), "");
 	});
 }
 

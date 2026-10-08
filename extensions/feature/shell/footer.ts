@@ -48,6 +48,7 @@ export function footerGlyphs(nerdIcons: boolean): { git: string; cache: string; 
 		: { git: "", cache: "", mcp: "" };
 }
 
+const PI_VIM_MODE_STATUS_KEY = "pi-vim-mode";
 const SUBAGENT_MARKER_KEYS = [
 	"PI_SUBAGENT_AGENT",
 	"PI_SUBAGENT_PARENT_SESSION",
@@ -68,9 +69,10 @@ export function isSubagentChildEnvironment(
 }
 
 export function footerRoleLabel(
+	vimMode: string | undefined,
 	env: Readonly<Record<string, string | undefined>> = process.env,
 ): string {
-	return isSubagentChildEnvironment(env) ? "" : "Tech Lead";
+	return isSubagentChildEnvironment(env) ? "" : vimMode || "";
 }
 
 export function formatCwdLabel(cwd: string, home = homedir()): string {
@@ -160,13 +162,19 @@ export function getFooterStatusSnapshot(): Map<string, string> {
 	return out;
 }
 
-function rememberExtensionStatuses(entries: Iterable<[string, string]>): void {
+function rememberExtensionStatuses(entries: Iterable<[string, string]>): string | undefined {
 	cachedExtensionStatuses.clear();
+	let vimMode: string | undefined;
 	for (const [key, raw] of entries) {
+		if (key === PI_VIM_MODE_STATUS_KEY) {
+			vimMode = raw;
+			continue;
+		}
 		if (isSkippedFooterStatusKey(key)) continue;
 		const text = stripAnsi(raw.replace(/[\r\n\t]+/g, " ").trim());
 		if (text) cachedExtensionStatuses.set(key, text);
 	}
+	return vimMode;
 }
 
 function pluginTextsForRender(localUsageChip: string): Map<string, string> {
@@ -423,7 +431,7 @@ const createCustomFooterFactory =
 			const thinkingLevelStr = ctx.thinkingLevel || "off";
 			const thinkingColor = theme.getThinkingBorderColor(thinkingLevelStr);
 
-			rememberExtensionStatuses(
+			const vimMode = rememberExtensionStatuses(
 				footerData.getExtensionStatuses().entries() as Iterable<[string, string]>,
 			);
 			const pluginTexts = pluginTextsForRender(localUsageChip);
@@ -485,8 +493,8 @@ const createCustomFooterFactory =
 				const gitLabel = glyphs.git ? `${glyphs.git} ${branch}` : branch;
 				place += theme.fg("muted", " on ") + gitColor(gitLabel) + stats;
 			}
-			const role = footerRoleLabel();
-			const line2 = joinChips([role ? theme.fg("warning", role) : "", place, ...line2Plugins]);
+			const role = footerRoleLabel(vimMode);
+			const line2 = joinChips([role, place, ...line2Plugins]);
 			const line3 = joinChips(line3Plugins);
 
 			return [
