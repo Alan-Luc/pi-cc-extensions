@@ -77,7 +77,7 @@ test("diff syntax uses Kanagawa Shiki for Kanagawa, Pi otherwise, and honors DIF
 	try {
 		delete process.env.DIFF_THEME;
 		assert.equal(resolveShikiTheme(theme), undefined);
-		assert.equal(resolveShikiTheme({ ...theme, name: "kanagawa-ink" }), "kanagawa-dragon");
+		assert.equal(resolveShikiTheme({ ...theme, name: "kanagawa-ink" }), "kanagawa-paper-ink");
 		assert.equal(resolveShikiTheme({ ...theme, name: "dark" }), undefined);
 		const entry: DiffLineEntry = {
 			kind: "line", content: "const value = 1", lineKind: "context",

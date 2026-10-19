@@ -9,6 +9,7 @@ import { ansi256ToRgb } from "../../../utils/ansi-color.ts";
 import { fitToWidth } from "./diff-text.ts";
 import { mergeSpans, type DiffSpan } from "./diff-inline.ts";
 import type { DiffLineKind } from "./diff-parse.ts";
+import { KANAGAWA_PAPER_INK_THEME } from "./kanagawa-paper-ink.ts";
 
 export interface DiffTheme {
 	name?: string;
@@ -396,5 +397,5 @@ export function applyInlineSpanHighlight(
 
 export function resolveShikiTheme(theme: DiffTheme): string | undefined {
 	if (process.env.DIFF_THEME) return process.env.DIFF_THEME;
-	return theme.name === "kanagawa-ink" ? "kanagawa-dragon" : undefined;
+	return theme.name === "kanagawa-ink" ? KANAGAWA_PAPER_INK_THEME.name : undefined;
 }

@@ -1,25 +1,69 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { stripVTControlCharacters } from "node:util";
 import {
 	MAX_HL_CHARS,
 	ShikiHighlightCache,
 } from "../extensions/renderer/tool/diff/shiki-highlight.ts";
 import { shouldHighlightCodeBlock } from "../extensions/renderer/tool/diff/diff-renderer.ts";
 import { sanitizeToolResultText } from "../extensions/utils/tool-result-sanitize.ts";
+import { KANAGAWA_PAPER_INK_THEME } from "../extensions/renderer/tool/diff/kanagawa-paper-ink.ts";
 
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-test("Kanagawa grammar gives Python comments, functions, strings and numbers distinct colours", async () => {
+test("Paper Ink gives Python comments, functions, strings and numbers the Vim colours", async () => {
 	const { codeToTokensBase } = await import("shiki");
-	const tokens = await codeToTokensBase(
-		'# A comment\ndef greet(name: str):\n    count = 42\n    return "hello" + name',
-		{ lang: "python", theme: "kanagawa-dragon" },
-	);
-	const colours = new Set(tokens.flatMap(line => line.map(token => token.color?.toLowerCase())));
-	for (const colour of ["#737c73", "#8ba4b0", "#8a9a7b", "#a292a3"]) {
-		assert.ok(colours.has(colour), `Python tokens include Kanagawa colour ${colour}`);
-	}
+	const tokens = (
+		await codeToTokensBase(
+			'# A comment\ndef greet(name: str):\n    count = 42\n    return "hello" + name',
+			{ lang: "python", theme: KANAGAWA_PAPER_INK_THEME },
+		)
+	).flat();
+	const getTokenColour = (content: string) =>
+		tokens.find((token) => token.content === content)?.color?.toLowerCase();
+	assert.equal(getTokenColour("# A comment"), "#727169");
+	assert.equal(getTokenColour("greet"), "#859fac");
+	assert.ok(tokens.some((token) =>
+		token.content.includes("hello") && token.color?.toLowerCase() === "#8a9a7b",
+	));
+	assert.equal(getTokenColour("42"), "#a292a3");
 });
+
+test("Paper Ink distinguishes TypeScript keywords, statements, types and functions", async () => {
+	const { codeToTokensBase } = await import("shiki");
+	const tokens = (
+		await codeToTokensBase(
+			'export function greet(name: string): string { const count = 42; if (count > 0) return "hello"; return name; }',
+			{ lang: "typescript", theme: KANAGAWA_PAPER_INK_THEME },
+		)
+	).flat();
+	const getTokenColour = (content: string) =>
+		tokens.find((token) => token.content === content)?.color?.toLowerCase();
+	assert.equal(getTokenColour("const"), "#a292a3");
+	assert.equal(getTokenColour("if"), "#8992a7");
+	assert.equal(getTokenColour("string"), "#8ea49e");
+	assert.equal(getTokenColour("greet"), "#859fac");
+	assert.equal(getTokenColour("return"), "#a292a3");
+});
+
+test(
+	"the real Shiki CLI accepts the custom Paper Ink theme through the cache",
+	{ timeout: 5_000 },
+	async () => {
+		const code = "const count: number = 42;";
+		const cache = new ShikiHighlightCache();
+		await new Promise<void>((resolve) => {
+			assert.equal(
+				cache.get(code, "typescript", KANAGAWA_PAPER_INK_THEME.name, ["fallback"], resolve),
+				undefined,
+			);
+		});
+		const rendered = cache.get(code, "typescript", KANAGAWA_PAPER_INK_THEME.name, ["fallback"]);
+		assert.ok(rendered);
+		assert.equal(stripVTControlCharacters(rendered.join("\n")), code);
+		assert.equal(cache.get(code, "typescript", "kanagawa-dragon", ["fallback"]), undefined);
+	},
+);
 
 test("Shiki cache deduplicates pending work, caches success, and isolates themes", async () => {
 	let loads = 0;

@@ -1,7 +1,13 @@
+import { KANAGAWA_PAPER_INK_THEME } from "./kanagawa-paper-ink.ts";
+
 export const MAX_HL_CHARS = 32_000;
 const MAX_CACHE_ENTRIES = 48;
 
-type CodeToAnsi = (code: string, lang: any, theme: any) => Promise<string>;
+type CodeToAnsi = (
+	code: string,
+	lang: string,
+	theme: string | typeof KANAGAWA_PAPER_INK_THEME,
+) => Promise<string>;
 type Loader = () => Promise<CodeToAnsi>;
 type Subscriber = { fallback: readonly string[]; invalidate: () => void };
 type Pending = { work: Promise<void>; subscribers: Set<Subscriber> };
@@ -10,6 +16,7 @@ let defaultLoad: Promise<CodeToAnsi> | undefined;
 const loadDefault: Loader = () => {
 	if (!defaultLoad) {
 		defaultLoad = import("@shikijs/cli")
+			// Shiki accepts raw themes; the CLI types only enumerate bundled names.
 			.then((module) => module.codeToANSI as CodeToAnsi)
 			.catch((error) => {
 				defaultLoad = undefined;
@@ -59,7 +66,13 @@ export class ShikiHighlightCache {
 		const pending: Pending = { work: undefined as never, subscribers: new Set() };
 		if (invalidate) pending.subscribers.add({ fallback, invalidate });
 		pending.work = this.loader()
-			.then((highlight) => highlight(code, lang, theme))
+			.then((highlight) =>
+				highlight(
+					code,
+					lang,
+					theme === KANAGAWA_PAPER_INK_THEME.name ? KANAGAWA_PAPER_INK_THEME : theme,
+				),
+			)
 			.then((ansi) => {
 				const lines = ansi.replace(/\r/g, "").replace(/\n$/, "").split("\n");
 				this.cache.set(key, lines);
