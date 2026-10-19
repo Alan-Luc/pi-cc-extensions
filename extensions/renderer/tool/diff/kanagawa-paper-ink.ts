@@ -13,6 +13,19 @@ export const KANAGAWA_PAPER_INK_THEME = {
 			settings: { foreground: "#717e67", fontStyle: "italic" },
 		},
 		{ scope: ["variable"], settings: { foreground: "#DCD7BA" } },
+		{
+			scope: [
+				"source.js variable.other.readwrite",
+				"source.js variable.other.constant",
+				"source.jsx variable.other.readwrite",
+				"source.jsx variable.other.constant",
+				"source.ts variable.other.readwrite",
+				"source.ts variable.other.constant",
+				"source.tsx variable.other.readwrite",
+				"source.tsx variable.other.constant",
+			],
+			settings: { foreground: "#b6927b" },
+		},
 		{ scope: ["variable.parameter"], settings: { foreground: "#a6a69c" } },
 		{
 			scope: ["variable.other.property", "variable.other.object.property"],

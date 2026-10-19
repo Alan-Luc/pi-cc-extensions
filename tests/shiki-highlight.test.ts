@@ -27,6 +27,9 @@ test("Paper Ink gives Python comments, functions, strings and numbers the Vim co
 		token.content.includes("hello") && token.color?.toLowerCase() === "#8a9a7b",
 	));
 	assert.equal(getTokenColour("42"), "#a292a3");
+	assert.ok(tokens.some((token) =>
+		token.content.includes("count") && token.color?.toLowerCase() === "#dcd7ba",
+	));
 });
 
 test("Paper Ink distinguishes TypeScript keywords, statements, types and functions", async () => {
@@ -44,6 +47,32 @@ test("Paper Ink distinguishes TypeScript keywords, statements, types and functio
 	assert.equal(getTokenColour("string"), "#8ea49e");
 	assert.equal(getTokenColour("greet"), "#859fac");
 	assert.equal(getTokenColour("return"), "#a292a3");
+	assert.equal(getTokenColour("count"), "#b6927b");
+});
+
+test("Paper Ink matches TSX identifier references without recolouring other syntax roles", async () => {
+	const { codeToTokensBase } = await import("shiki");
+	const code = [
+		'const endingIcon = screen.getByRole("img");',
+		'expect(endingIcon).toBeVisible();',
+		'expect(screen.getByText(label)).toBeVisible();',
+		'render(<DetailTranscript transcript={transcript} scenarioCodes={{ scenario: "01" }} />);',
+	].join("\n");
+	const tokens = (await codeToTokensBase(code, {
+		lang: "tsx",
+		theme: KANAGAWA_PAPER_INK_THEME,
+	})).flat();
+	const coloursAt = (text: string) => tokens.filter((token) => token.content.trim() === text)
+		.map((token) => token.color?.toLowerCase());
+	assert.deepEqual(coloursAt("endingIcon"), ["#b6927b", "#b6927b"]);
+	assert.deepEqual(coloursAt("label"), ["#b6927b"]);
+	assert.deepEqual(coloursAt("transcript"), ["#c4b28a", "#b6927b"]);
+	assert.deepEqual(coloursAt("getByRole"), ["#859fac"]);
+	assert.deepEqual(coloursAt("scenarioCodes"), ["#c4b28a"]);
+	assert.deepEqual(coloursAt("scenario"), ["#dcd7ba"]);
+	assert.ok(tokens.some((token) =>
+		token.content.includes("img") && token.color?.toLowerCase() === "#8a9a7b",
+	));
 });
 
 test(
