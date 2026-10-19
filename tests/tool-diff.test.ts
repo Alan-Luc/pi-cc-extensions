@@ -19,6 +19,9 @@ import {
 	renderWriteDiffResult,
 } from "../extensions/renderer/tool/diff/diff-renderer.ts";
 import { normalizeConfig } from "../extensions/config/config.ts";
+import { createCodeLineHighlighter } from "../extensions/renderer/tool/diff/diff-highlight.ts";
+import { resolveDiffPalette, resolveShikiTheme } from "../extensions/renderer/tool/diff/diff-palette.ts";
+import type { DiffLineEntry } from "../extensions/renderer/tool/diff/diff-parse.ts";
 
 initTheme("dark");
 import {
@@ -51,6 +54,46 @@ const theme = {
 function output(component: any, width = 100): string[] {
 	return component.render(width);
 }
+
+test("diff palette derives subdued and emphasized backgrounds from theme foregrounds", () => {
+	const ansiTheme = {
+		...theme,
+		getBgAnsi: () => "\x1b[48;2;10;12;13m",
+		getFgAnsi(color: string) {
+			return color === "toolDiffAdded"
+				? "\x1b[38;2;105;148;105m"
+				: "\x1b[38;2;196;116;110m";
+		},
+	};
+	const palette = resolveDiffPalette(ansiTheme);
+	assert.equal(palette.addRowBgAnsi, "\x1b[48;2;21;28;24m");
+	assert.equal(palette.addEmphasisBgAnsi, "\x1b[48;2;35;47;37m");
+	assert.equal(palette.removeRowBgAnsi, "\x1b[48;2;32;24;25m");
+	assert.equal(palette.removeEmphasisBgAnsi, "\x1b[48;2;58;39;38m");
+});
+
+test("diff syntax uses Kanagawa Shiki for Kanagawa, Pi otherwise, and honors DIFF_THEME", () => {
+	const previousTheme = process.env.DIFF_THEME;
+	try {
+		delete process.env.DIFF_THEME;
+		assert.equal(resolveShikiTheme(theme), undefined);
+		assert.equal(resolveShikiTheme({ ...theme, name: "kanagawa-ink" }), "kanagawa-dragon");
+		assert.equal(resolveShikiTheme({ ...theme, name: "dark" }), undefined);
+		const entry: DiffLineEntry = {
+			kind: "line", content: "const value = 1", lineKind: "context",
+			oldLineNumber: 1, newLineNumber: 1, fallbackLineNumber: "1",
+			raw: " 1 const value = 1", hunkIndex: 0,
+		};
+		const highlight = createCodeLineHighlighter("typescript", theme, [entry]);
+		assert.match(highlight("", entry), /\x1b\[/, "Pi-native syntax highlighting is used");
+
+		process.env.DIFF_THEME = "nord";
+		assert.equal(resolveShikiTheme({ ...theme, name: "kanagawa-ink" }), "nord");
+	} finally {
+		if (previousTheme === undefined) delete process.env.DIFF_THEME;
+		else process.env.DIFF_THEME = previousTheme;
+	}
+});
 
 test("rich diff routes only successful edit/write results in on mode", () => {
 	for (const mode of ["on", "off"] as const) {

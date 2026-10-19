@@ -11,6 +11,7 @@ import { mergeSpans, type DiffSpan } from "./diff-inline.ts";
 import type { DiffLineKind } from "./diff-parse.ts";
 
 export interface DiffTheme {
+	name?: string;
 	fg(color: string, text: string): string;
 	bg?(color: string, text: string): string;
 	bold?(text: string): string;
@@ -35,8 +36,6 @@ const ADD_ROW_BACKGROUND_MIX_RATIO = 0.12;
 const REMOVE_ROW_BACKGROUND_MIX_RATIO = 0.12;
 const ADD_INLINE_EMPHASIS_MIX_RATIO = 0.26;
 const REMOVE_INLINE_EMPHASIS_MIX_RATIO = 0.26;
-const ADDITION_TINT_TARGET: RgbColor = { r: 84, g: 190, b: 118 };
-const DELETION_TINT_TARGET: RgbColor = { r: 232, g: 95, b: 122 };
 export const ANSI_BG_RESET = "\x1b[49m";
 
 export function emphasis(theme: DiffTheme, text: string): string {
@@ -276,13 +275,10 @@ export function resolveDiffPalette(theme: DiffTheme): DiffPalette {
 		g: 98,
 		b: 98,
 	};
-	const addTint = mixRgb(addFg, ADDITION_TINT_TARGET, 0.35);
-	const removeTint = mixRgb(removeFg, DELETION_TINT_TARGET, 0.65);
-
-	const addRowBg = mixRgb(baseBg, addTint, ADD_ROW_BACKGROUND_MIX_RATIO);
-	const removeRowBg = mixRgb(baseBg, removeTint, REMOVE_ROW_BACKGROUND_MIX_RATIO);
-	const addEmphasisBg = mixRgb(baseBg, addTint, ADD_INLINE_EMPHASIS_MIX_RATIO);
-	const removeEmphasisBg = mixRgb(baseBg, removeTint, REMOVE_INLINE_EMPHASIS_MIX_RATIO);
+	const addRowBg = mixRgb(baseBg, addFg, ADD_ROW_BACKGROUND_MIX_RATIO);
+	const removeRowBg = mixRgb(baseBg, removeFg, REMOVE_ROW_BACKGROUND_MIX_RATIO);
+	const addEmphasisBg = mixRgb(baseBg, addFg, ADD_INLINE_EMPHASIS_MIX_RATIO);
+	const removeEmphasisBg = mixRgb(baseBg, removeFg, REMOVE_INLINE_EMPHASIS_MIX_RATIO);
 
 	return {
 		addRowBgAnsi: rgbToBgAnsi(addRowBg),
@@ -398,13 +394,7 @@ export function applyInlineSpanHighlight(
 	return highlighted;
 }
 
-export function resolveShikiTheme(theme: DiffTheme): string {
+export function resolveShikiTheme(theme: DiffTheme): string | undefined {
 	if (process.env.DIFF_THEME) return process.env.DIFF_THEME;
-	const background =
-		parseAnsiColorCode(readThemeAnsi(theme, "bg", "toolSuccessBg")) ??
-		parseAnsiColorCode(readThemeAnsi(theme, "bg", "toolPendingBg")) ??
-		parseAnsiColorCode(readThemeAnsi(theme, "bg", "userMessageBg"));
-	if (!background) return "github-dark";
-	const luminance = (background.r * 299 + background.g * 587 + background.b * 114) / 1000;
-	return luminance >= 128 ? "github-light" : "github-dark";
+	return theme.name === "kanagawa-ink" ? "kanagawa-dragon" : undefined;
 }

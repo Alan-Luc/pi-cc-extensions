@@ -132,6 +132,30 @@ test("compact thinking patches the runtime component with ccstyle config", () =>
 	}
 });
 
+test("assistant prose uses the active theme text colour instead of terminal foreground", () => {
+	initTheme("dark");
+	const { emit, pi } = runtime();
+	const ctx = themeCtx();
+	const aqua = "\x1b[38;2;142;164;158m";
+	ctx.ui.theme.fg = (role, text) => role === "text" ? `${aqua}${text}\x1b[39m` : text;
+	try {
+		installCompactThinking(pi, config);
+		emit("session_start", {}, ctx);
+		const message: AssistantMessage = {
+			...thinkingMessage(123, false),
+			content: [{ type: "text", text: "Aqua body with **bold text**." }],
+		};
+		const component = new AssistantMessageComponent(message, true);
+		const rendered = component.render(120).join("\n");
+		assert.ok(rendered.includes(`${aqua}Aqua body`));
+		assert.ok(rendered.includes("bold text"));
+		component.invalidate();
+		assert.ok(component.render(120).join("\n").includes(`${aqua}Aqua body`));
+	} finally {
+		emit("session_shutdown", {}, ctx);
+	}
+});
+
 test("reload keeps the replacement compact-thinking prototype patch", () => {
 	const dir = mkdtempSync(join(tmpdir(), "pi-compact-thinking-reload-"));
 	const previousDir = process.env.PI_CODING_AGENT_DIR;

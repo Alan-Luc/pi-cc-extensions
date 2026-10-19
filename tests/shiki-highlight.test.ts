@@ -9,6 +9,18 @@ import { sanitizeToolResultText } from "../extensions/utils/tool-result-sanitize
 
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test("Kanagawa grammar gives Python comments, functions, strings and numbers distinct colours", async () => {
+	const { codeToTokensBase } = await import("shiki");
+	const tokens = await codeToTokensBase(
+		'# A comment\ndef greet(name: str):\n    count = 42\n    return "hello" + name',
+		{ lang: "python", theme: "kanagawa-dragon" },
+	);
+	const colours = new Set(tokens.flatMap(line => line.map(token => token.color?.toLowerCase())));
+	for (const colour of ["#737c73", "#8ba4b0", "#8a9a7b", "#a292a3"]) {
+		assert.ok(colours.has(colour), `Python tokens include Kanagawa colour ${colour}`);
+	}
+});
+
 test("Shiki cache deduplicates pending work, caches success, and isolates themes", async () => {
 	let loads = 0;
 	let highlights = 0;

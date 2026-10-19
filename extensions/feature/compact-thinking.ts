@@ -668,7 +668,9 @@ function compactThinking(pi: ExtensionAPI) {
 
 			if (content.type === "text" && content.text.trim()) {
 				self.contentContainer.addChild(
-					new Markdown(content.text.trim(), self.outputPad, 0, self.markdownTheme, undefined, {
+					new Markdown(content.text.trim(), self.outputPad, 0, self.markdownTheme, {
+						color: (text) => activeTheme?.fg("text", text) ?? text,
+					}, {
 						transform: createTransform("assistant", self),
 					}),
 				);

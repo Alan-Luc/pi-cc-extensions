@@ -65,6 +65,7 @@ export function createCodeLineHighlighter(
 	if (!shouldHighlight) return (_line, entry) => fallbackByEntry.get(entry) ?? "";
 
 	const shikiTheme = resolveShikiTheme(theme);
+	if (!shikiTheme) return (_line, entry) => fallbackByEntry.get(entry) ?? "";
 	let highlightedByEntry: WeakMap<DiffLineEntry, string> | undefined;
 	const resolveHighlighted = () => {
 		if (highlightedByEntry) return;
