@@ -560,6 +560,7 @@ function createTransform(
 function compactThinking(pi: ExtensionAPI) {
 	const prototype = AssistantMessageComponent.prototype as PatchedPrototype;
 	const originalUpdateContent = prototype.updateContent;
+	const originalRender = prototype.render;
 
 	activeThinkingStateQuery = (messageTimestamp) =>
 		activeThinking?.messageTimestamp === messageTimestamp;
@@ -587,6 +588,24 @@ function compactThinking(pi: ExtensionAPI) {
 	let animationFrame = 0;
 	let compactSummaryActive = false;
 	let patchInstalled = true;
+
+	const renderWithThemeText = function (
+		this: AssistantMessageComponentLike,
+		width: number,
+	): string[] {
+		const lines = originalRender.call(this, width);
+		const textTheme = activeTheme;
+		if (!textTheme || typeof textTheme.fg !== "function") return lines;
+		const [foreground = ""] = textTheme.fg("text", "\u0000").split("\u0000");
+		// Native prose inherits terminal foreground, including after inline-style resets.
+		return lines.map((line) =>
+			textTheme.fg(
+				"text",
+				line.replaceAll("\x1b[39m", foreground).replaceAll("\x1b[0m", `\x1b[0m${foreground}`),
+			),
+		);
+	};
+	prototype.render = renderWithThemeText;
 
 	function thinkingStyle(text: string) {
 		return styleCompactThinkingText(text, activeTheme);
@@ -668,9 +687,7 @@ function compactThinking(pi: ExtensionAPI) {
 
 			if (content.type === "text" && content.text.trim()) {
 				self.contentContainer.addChild(
-					new Markdown(content.text.trim(), self.outputPad, 0, self.markdownTheme, {
-						color: (text) => activeTheme?.fg("text", text) ?? text,
-					}, {
+					new Markdown(content.text.trim(), self.outputPad, 0, self.markdownTheme, undefined, {
 						transform: createTransform("assistant", self),
 					}),
 				);
@@ -1035,6 +1052,7 @@ function compactThinking(pi: ExtensionAPI) {
 				prototype.updateContent =
 					typeof wrappedOriginal === "function" ? wrappedOriginal : originalUpdateContent;
 			}
+			if (prototype.render === renderWithThemeText) prototype.render = originalRender;
 			patchInstalled = false;
 		}
 	});

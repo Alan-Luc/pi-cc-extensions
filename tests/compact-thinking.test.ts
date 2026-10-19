@@ -3,7 +3,11 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { AssistantMessageComponent, initTheme } from "@earendil-works/pi-coding-agent";
+import {
+	AssistantMessageComponent,
+	getMarkdownTheme,
+	initTheme,
+} from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 
 import { config as ccstyleConfig } from "../extensions/config/config.ts";
@@ -132,27 +136,79 @@ test("compact thinking patches the runtime component with ccstyle config", () =>
 	}
 });
 
-test("assistant prose uses the active theme text colour instead of terminal foreground", () => {
+function assertAssistantProseTheme(hideThinkingBlock: boolean): void {
 	initTheme("dark");
 	const { emit, pi } = runtime();
 	const ctx = themeCtx();
 	const aqua = "\x1b[38;2;142;164;158m";
-	ctx.ui.theme.fg = (role, text) => role === "text" ? `${aqua}${text}\x1b[39m` : text;
+	const violet = "\x1b[38;2;137;146;167m";
+	const green = "\x1b[38;2;138;154;123m";
+	ctx.ui.theme.fg = (role, text) => (role === "text" ? `${aqua}${text}\x1b[39m` : text);
 	try {
 		installCompactThinking(pi, config);
 		emit("session_start", {}, ctx);
 		const message: AssistantMessage = {
 			...thinkingMessage(123, false),
-			content: [{ type: "text", text: "Aqua body with **bold text**." }],
+			content: [
+				{
+					type: "text",
+					text: "Aqua body with **bold text** and `inline code` after inline. Also `reset code` after reset.\n\n# Violet heading",
+				},
+			],
 		};
-		const component = new AssistantMessageComponent(message, true);
+		const markdownTheme = {
+			...getMarkdownTheme(),
+			heading: (text: string) => `${violet}${text}\x1b[39m`,
+			code: (text: string) => `${green}${text}${text === "reset code" ? "\x1b[0m" : "\x1b[39m"}`,
+		};
+		const component = new AssistantMessageComponent(message, hideThinkingBlock, markdownTheme);
 		const rendered = component.render(120).join("\n");
-		assert.ok(rendered.includes(`${aqua}Aqua body`));
-		assert.ok(rendered.includes("bold text"));
+		assert.ok(rendered.includes(aqua), "body does not inherit terminal yellow");
+		assert.ok(rendered.includes(`${aqua} after inline.`), "inline colour resets restore aqua prose");
+		assert.ok(rendered.includes(`${aqua} after reset.`), "full resets restore aqua prose");
+		assert.ok(rendered.includes(`${green}inline code`), "inline code retains its semantic colour");
+		assert.ok(rendered.includes(`${violet}Violet heading`), "headings retain their semantic colour");
 		component.invalidate();
-		assert.ok(component.render(120).join("\n").includes(`${aqua}Aqua body`));
+		assert.ok(component.render(120).join("\n").includes(`${aqua} after inline.`));
 	} finally {
 		emit("session_shutdown", {}, ctx);
+	}
+}
+
+test("assistant prose uses theme text with hidden thinking", () => {
+	assertAssistantProseTheme(true);
+});
+
+test("assistant prose uses theme text with native visible thinking", () => {
+	assertAssistantProseTheme(false);
+});
+
+test("the assistant text renderer preserves reload, headless and shutdown ownership", () => {
+	const originalRender = AssistantMessageComponent.prototype.render;
+	const first = runtime();
+	const second = runtime();
+	const headless = runtime();
+	try {
+		installCompactThinking(first.pi, config);
+		first.emit("session_start", {}, themeCtx());
+		assert.notEqual(AssistantMessageComponent.prototype.render, originalRender);
+
+		installCompactThinking(second.pi, config);
+		second.emit("session_start", {}, themeCtx());
+		const replacementRender = AssistantMessageComponent.prototype.render;
+		first.emit("session_shutdown", {}, themeCtx());
+		assert.equal(AssistantMessageComponent.prototype.render, replacementRender);
+
+		installCompactThinking(headless.pi, config);
+		headless.emit("session_start", {}, headlessCtx);
+		headless.emit("session_shutdown", {}, headlessCtx);
+		assert.equal(AssistantMessageComponent.prototype.render, replacementRender);
+
+		second.emit("session_shutdown", {}, themeCtx());
+		assert.equal(AssistantMessageComponent.prototype.render, originalRender);
+	} finally {
+		first.emit("session_shutdown", {}, themeCtx());
+		second.emit("session_shutdown", {}, themeCtx());
 	}
 });
 
