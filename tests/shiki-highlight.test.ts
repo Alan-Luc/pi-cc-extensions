@@ -59,7 +59,7 @@ test("Paper Ink matches Python call and logical-operator colours without recolou
 	assert.equal(colourAt("is_visible"), "#c4b28a");
 	assert.equal(colourAt("get_by_test_id"), "#c4b28a");
 	assert.equal(colourAt("has_class"), "#c4b28a");
-	assert.equal(colourAt("not "), "#a292a3");
+	assert.equal(colourAt("not "), "#c4746e");
 	assert.equal(colourAt("transcript ="), "#dcd7ba");
 	assert.equal(colourAt("ending_icon ="), "#dcd7ba");
 	assert.equal(colourAt("label ="), "#dcd7ba");
