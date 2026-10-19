@@ -32,6 +32,45 @@ test("Paper Ink gives Python comments, functions, strings and numbers the Vim co
 	));
 });
 
+test("Paper Ink matches Python call and logical-operator colours without recolouring values", async () => {
+	const { codeToTokensBase } = await import("shiki");
+	const code = [
+		'def test_transcript_label():',
+		'    transcript = build_transcript(scenario="01")',
+		'    ending_icon = transcript.get_by_role("img", name="End of call")',
+		'    assert ending_icon.is_visible()',
+		'    assert not transcript.get_by_test_id("turn-outcome").has_class("opacity-60")',
+		'    label = transcript.label',
+		'    count = len(label) + 42',
+	].join("\n");
+	const tokens = (await codeToTokensBase(code, {
+		lang: "python",
+		theme: KANAGAWA_PAPER_INK_THEME,
+	})).flat();
+	const colourAt = (text: string) => {
+		const offset = code.indexOf(text);
+		assert.notEqual(offset, -1);
+		return tokens.find((token) => token.offset <= offset &&
+			token.offset + token.content.length > offset)?.color?.toLowerCase();
+	};
+	assert.equal(colourAt("test_transcript_label"), "#859fac");
+	assert.equal(colourAt("build_transcript"), "#859fac");
+	assert.equal(colourAt("get_by_role"), "#c4b28a");
+	assert.equal(colourAt("is_visible"), "#c4b28a");
+	assert.equal(colourAt("get_by_test_id"), "#c4b28a");
+	assert.equal(colourAt("has_class"), "#c4b28a");
+	assert.equal(colourAt("not "), "#a292a3");
+	assert.equal(colourAt("transcript ="), "#dcd7ba");
+	assert.equal(colourAt("ending_icon ="), "#dcd7ba");
+	assert.equal(colourAt("label ="), "#dcd7ba");
+	assert.equal(colourAt("label\n"), "#dcd7ba");
+	assert.equal(colourAt("scenario="), "#a6a69c");
+	assert.equal(colourAt('"opacity-60"'), "#8a9a7b");
+	assert.equal(colourAt("len("), "#859fac");
+	assert.equal(colourAt("+"), "#c4746e");
+	assert.equal(colourAt("42"), "#a292a3");
+});
+
 test("Paper Ink distinguishes TypeScript keywords, statements, types and functions", async () => {
 	const { codeToTokensBase } = await import("shiki");
 	const tokens = (

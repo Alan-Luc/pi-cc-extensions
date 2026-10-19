@@ -50,10 +50,15 @@ export const KANAGAWA_PAPER_INK_THEME = {
 			settings: { foreground: "#c4746e" },
 		},
 		{ scope: ["keyword.operator"], settings: { foreground: "#c4746e" } },
+		{ scope: ["keyword.operator.logical.python"], settings: { foreground: "#a292a3" } },
 		{ scope: ["punctuation", "meta.brace"], settings: { foreground: "#9e9b93" } },
 		{
-			scope: ["entity.name.function", "variable.function", "support.function"],
+			scope: ["entity.name.function", "variable.function", "support.function", "meta.function-call.generic.python"],
 			settings: { foreground: "#859fac" },
+		},
+		{
+			scope: ["meta.member.access.python meta.function-call.generic.python"],
+			settings: { foreground: "#c4b28a" },
 		},
 		{
 			scope: ["entity.name.type", "entity.name.class", "support.type", "support.class"],
